@@ -9,10 +9,10 @@
 	namespace MehrIt\LaraTransactions\Provider;
 
 
-	use Carbon\Laravel\ServiceProvider;
 	use Illuminate\Contracts\Support\DeferrableProvider;
 	use Illuminate\Database\Connection;
 	use Illuminate\Database\Eloquent\Model;
+	use Illuminate\Support\ServiceProvider;
 	use MehrIt\LaraTransactions\Contracts\Transaction;
 	use MehrIt\LaraTransactions\TransactionManager;
 	use MehrIt\LaraTransactions\Transactors\DatabaseConnectionTransactor;
