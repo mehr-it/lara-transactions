@@ -1,4 +1,7 @@
-# LaraTransactions
+# Transactions for Laravel
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/mehr-it/lara-transactions.svg?style=flat-square)](https://packagist.org/packages/mehr-it/lara-transactions)
+[![Build Status](https://travis-ci.org/mehr-it/lara-transactions.svg?branch=master)](https://travis-ci.org/mehr-it/lara-transactions)
+
 Handles multiple simultaneous transactions and offers a general transaction interface for laravel.
 
 Usually transactions are used when working with databases to ensure consistency. But this package
