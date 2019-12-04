@@ -1,0 +1,40 @@
+{
+  "name": "mehr-it/lara-transactions",
+  "description": "Handles multiple simultaneous transactions and offers a general transaction interface for laravel",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Christopher Mieger",
+      "email": "mail@mehr-it.info"
+    }
+  ],
+  "require": {
+    "laravel/framework": "^5.8|^6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "MehrIt\\LaraTransactions\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "MehrItLaraTransactionsTest\\": "test/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "MehrIt\\LaraTransactions\\Provider\\TransactionsProvider"
+      ],
+      "aliases": {
+        "Transaction": "MehrIt\\LaraTransactions\\Facades\\Transaction"
+      }
+    }
+  },
+  "require-dev": {
+    "yajra/laravel-oci8": "^5.8|^6.0",
+    "phpunit/phpunit": "^7.4|^8.0",
+    "orchestra/testbench": "^3.8|^4.0"
+  }
+}
