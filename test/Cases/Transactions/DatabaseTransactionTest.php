@@ -10,7 +10,6 @@
 
 
 	use Illuminate\Database\Connection;
-	use Illuminate\Database\Events\QueryExecuted;
 	use Illuminate\Database\QueryException;
 	use Illuminate\Support\Facades\DB;
 	use MehrIt\LaraTransactions\Exception\RollbackException;
@@ -19,6 +18,7 @@
 	use MehrIt\LaraTransactions\Transactions\DatabaseTransaction;
 	use MehrItLaraTransactionsTest\Cases\TestCase;
 	use PHPUnit\Framework\MockObject\MockObject;
+	use Yajra\Oci8\Oci8ServiceProvider;
 
 	class DatabaseTransactionTest extends TestCase
 	{
@@ -312,6 +312,9 @@
 
 
 		public function testTest_success_usingOracleTestingConnection() {
+
+			if (!class_exists(Oci8ServiceProvider::class))
+				$this->markTestSkipped('Oci8ServiceProvider not installed');
 
 			if (!env('DB_ORACLE_HOST') && !env('DB_ORACLE_TNS'))
 				$this->markTestSkipped('No oracle database connection configured');

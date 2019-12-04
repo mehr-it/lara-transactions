@@ -356,7 +356,7 @@
 				->method('commit')
 				->willReturnCallback(function () use (&$lastCalled) {
 					// check for correct order
-					$this->assertContains(':test', $lastCalled, 'Expected t3 to be committed before other transactions');
+					$this->assertStringContainsString(':test', $lastCalled, 'Expected t3 to be committed before other transactions');
 					$lastCalled = 't3:commit';
 				});
 
@@ -422,7 +422,7 @@
 				->method('rollback')
 				->willReturnCallback(function () use (&$lastCalled) {
 					// check for correct order
-					$this->assertContains(':test', $lastCalled, 'Expected t3 to be rolled back before other transactions');
+					$this->assertStringContainsString(':test', $lastCalled, 'Expected t3 to be rolled back before other transactions');
 					$lastCalled = 't3:rollback';
 				});
 
@@ -484,7 +484,7 @@
 				->method('rollback')
 				->willReturnCallback(function () use (&$lastCalled) {
 					// check for correct order
-					$this->assertContains(':test', $lastCalled, 'Expected t3 to be rolled back before other transactions');
+					$this->assertStringContainsString(':test', $lastCalled, 'Expected t3 to be rolled back before other transactions');
 					$lastCalled = 't3:rollback';
 				});
 
@@ -556,7 +556,7 @@
 				->method('rollback')
 				->willReturnCallback(function () use (&$lastCalled) {
 					// check for correct order
-					$this->assertContains(':test', $lastCalled, 'Expected t3 to be rolled back before other transactions');
+					$this->assertStringContainsString(':test', $lastCalled, 'Expected t3 to be rolled back before other transactions');
 					$lastCalled = 't3:rollback';
 				});
 
@@ -624,7 +624,7 @@
 				->method('rollback')
 				->willReturnCallback(function () use (&$lastCalled) {
 					// check for correct order
-					$this->assertContains(':test', $lastCalled, 'Expected t3 to be rolled back before other transactions');
+					$this->assertStringContainsString(':test', $lastCalled, 'Expected t3 to be rolled back before other transactions');
 					$lastCalled = 't3:rollback';
 				});
 
@@ -698,7 +698,7 @@
 				->method('rollback')
 				->willReturnCallback(function () use (&$lastCalled) {
 					// check for correct order
-					$this->assertContains(':test', $lastCalled, 'Expected t3 to be rolled back before other transactions');
+					$this->assertStringContainsString(':test', $lastCalled, 'Expected t3 to be rolled back before other transactions');
 					$lastCalled = 't3:rollback';
 				});
 
@@ -767,7 +767,7 @@
 				->method('rollback')
 				->willReturnCallback(function () use (&$lastCalled) {
 					// check for correct order
-					$this->assertContains(':test', $lastCalled, 'Expected t3 to be rolled back before other transactions');
+					$this->assertStringContainsString(':test', $lastCalled, 'Expected t3 to be rolled back before other transactions');
 					$lastCalled = 't3:rollback';
 				});
 

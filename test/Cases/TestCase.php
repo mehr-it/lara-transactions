@@ -44,9 +44,12 @@
 		 * @return array
 		 */
 		protected function getPackageProviders($app) {
-			return [
-				Oci8ServiceProvider::class,
-				TransactionsProvider::class,
-			];
+
+			$ret = [TransactionsProvider::class];
+
+			if (class_exists(Oci8ServiceProvider::class))
+				$ret[] = Oci8ServiceProvider::class;
+
+			return $ret;
 		}
 	}
