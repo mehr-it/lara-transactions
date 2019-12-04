@@ -10,6 +10,7 @@
 
 
 	use Carbon\Laravel\ServiceProvider;
+	use Illuminate\Contracts\Support\DeferrableProvider;
 	use Illuminate\Database\Connection;
 	use Illuminate\Database\Eloquent\Model;
 	use MehrIt\LaraTransactions\Contracts\Transaction;
@@ -18,16 +19,8 @@
 	use MehrIt\LaraTransactions\Transactors\ModelTransactor;
 	use MehrIt\LaraTransactions\Transactors\TransactionTransactor;
 
-	class TransactionsProvider extends ServiceProvider
+	class TransactionsProvider extends ServiceProvider implements DeferrableProvider
 	{
-		/**
-		 * Indicates if loading of the provider is deferred.
-		 *
-		 * @var bool
-		 */
-		protected $defer = true;
-
-
 		/**
 		 * Register the service provider.
 		 *
