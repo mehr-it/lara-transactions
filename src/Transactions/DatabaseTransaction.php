@@ -34,6 +34,8 @@
 		 */
 		protected $transactionStarted = false;
 
+		protected $rollbackToLevel = 0;
+
 		/**
 		 * Creates a new instance
 		 * @param Connection $connection The database connection to handle transaction for
@@ -67,7 +69,12 @@
 			if ($this->transactionStarted)
 				throw new TransactionStartedException();
 
-			$this->connection->beginTransaction();
+			$connection = $this->connection;
+
+			// remember level to rollback to
+			$this->rollbackToLevel = $connection->transactionLevel();
+
+			$connection->beginTransaction();
 			$this->transactionStarted = true;
 
 			return $this;
@@ -93,7 +100,7 @@
 			if ($this->transactionStarted) {
 
 				try {
-					$this->connection->rollBack();
+					$this->connection->rollBack($this->rollbackToLevel);
 				}
 				catch(\Exception $ex) {
 					// ignore connection loss errors, since a collection loss implicitly executes a rollback
@@ -119,6 +126,11 @@
 			if (!$this->transactionStarted)
 				return false;
 
+			$connection = $this->connection;
+
+			if ($this->rollbackToLevel != $connection->transactionLevel() - 1)
+				return false;
+
 			try {
 
 				// we do a dummy query, to test if the connection is still alive
@@ -128,11 +140,11 @@
 					'oci'
 				])) {
 					// dummy select using dual table
-					$this->connection->select('SELECT 1 FROM dual');
+					$connection->select('SELECT 1 FROM dual');
 				}
 				else {
 					// dummy select without table
-					$this->connection->select('SELECT 1');
+					$connection->select('SELECT 1');
 				}
 
 				// select could be executed => connection is alive

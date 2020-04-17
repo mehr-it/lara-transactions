@@ -25,53 +25,52 @@
 
 		public function testConstructorGetters() {
 
+
+			if (!env('DB_CONNECTION'))
+				$this->markTestSkipped('No database connection configured');
+
 			/** @var Connection|MockObject $connection */
-			$connection = $this->getMockBuilder(Connection::class)->disableOriginalConstructor()->getMock();
-			$connection
-				->method('getName')
-				->willReturn('testConnection');
+			$connection = DB::connection();
 
 
 			$trans = new DatabaseTransaction($connection);
 
 			$this->assertSame($connection, $trans->getConnection());
-			$this->assertEquals('testConnection', $trans->getConnectionName());
+			$this->assertEquals(DB::connection()->getName(), $trans->getConnectionName());
 		}
 
 
 		public function testBegin() {
 
+			if (!env('DB_CONNECTION'))
+				$this->markTestSkipped('No database connection configured');
+
 			/** @var Connection|MockObject $connection */
-			$connection = $this->getMockBuilder(Connection::class)->disableOriginalConstructor()->getMock();
-			$connection
-				->method('getName')
-				->willReturn('testConnection');
-			$connection
-				->expects($this->once())
-				->method('beginTransaction');
+			$connection = DB::connection();
 
 			$trans = new DatabaseTransaction($connection);
 
 
 			$this->assertSame($trans, $trans->begin());
+
+			$this->assertSame(1, DB::transactionLevel());
 		}
 
 		public function testBegin_alreadyStarted() {
 
+			if (!env('DB_CONNECTION'))
+				$this->markTestSkipped('No database connection configured');
+
 			/** @var Connection|MockObject $connection */
-			$connection = $this->getMockBuilder(Connection::class)->disableOriginalConstructor()->getMock();
-			$connection
-				->method('getName')
-				->willReturn('testConnection');
-			$connection
-				->expects($this->once())
-				->method('beginTransaction');
+			$connection = DB::connection();
 
 			$trans = new DatabaseTransaction($connection);
 
 
 			// first call should succeed
 			$trans->begin();
+
+			$this->assertSame(1, DB::transactionLevel());
 
 			// second call should fail
 			$this->expectException(TransactionStartedException::class);
@@ -80,27 +79,57 @@
 
 		public function testBegin_exceptionThrown() {
 
+			if (!env('DB_CONNECTION'))
+				$this->markTestSkipped('No database connection configured');
+
 			/** @var Connection|MockObject $connection */
-			$connection = $this->getMockBuilder(Connection::class)->disableOriginalConstructor()->getMock();
-			$connection
-				->method('getName')
-				->willReturn('testConnection');
-			$connection
+			$connection = DB::connection();
+
+			$thrownException = new \Exception();
+
+			$pdoMock = $this->getMockBuilder(\PDO::class)->disableOriginalConstructor()->getMock();
+			$pdoMock
 				->expects($this->once())
 				->method('beginTransaction')
-				->willThrowException(new \Exception())
-			;
+				->willThrowException($thrownException);
+
+			$connection->setPdo($pdoMock);
+
 
 			$trans = new DatabaseTransaction($connection);
 
+			try {
+				$trans->begin();
 
-			$this->expectException(\Exception::class);
-			$trans->begin();
+				$this->fail('The expected exception was not thrown');
+			}
+			catch (\Exception $ex) {
+				$this->assertSame($thrownException, $ex);
+			}
 
 		}
 
 
 		public function testCommit() {
+
+			if (!env('DB_CONNECTION'))
+				$this->markTestSkipped('No database connection configured');
+
+			/** @var Connection|MockObject $connection */
+			$connection = DB::connection();
+
+			$trans = new DatabaseTransaction($connection);
+
+			$trans->begin();
+
+			$this->assertSame(1, DB::connection()->transactionLevel());
+
+			$this->assertSame($trans, $trans->commit());
+
+			$this->assertSame(0, DB::connection()->transactionLevel());
+		}
+
+		public function testCommit_callsCommitMethod() {
 
 			/** @var Connection|MockObject $connection */
 			$connection = $this->getMockBuilder(Connection::class)->disableOriginalConstructor()->getMock();
@@ -117,7 +146,9 @@
 			$trans = new DatabaseTransaction($connection);
 
 			$trans->begin();
+
 			$this->assertSame($trans, $trans->commit());
+
 		}
 
 		public function testCommit_yetNotStarted() {
@@ -140,26 +171,56 @@
 
 		public function testCommit_exceptionThrown() {
 
+			if (!env('DB_CONNECTION'))
+				$this->markTestSkipped('No database connection configured');
+
 			/** @var Connection|MockObject $connection */
-			$connection = $this->getMockBuilder(Connection::class)->disableOriginalConstructor()->getMock();
-			$connection
-				->method('getName')
-				->willReturn('testConnection');
-			$connection
+			$connection = DB::connection();
+
+			$thrownException = new \Exception();
+
+			$pdoMock = $this->getMockBuilder(\PDO::class)->disableOriginalConstructor()->getMock();
+			$pdoMock
 				->expects($this->once())
 				->method('commit')
-				->willThrowException(new \Exception())
-			;
+				->willThrowException($thrownException);
+
+			$connection->setPdo($pdoMock);
 
 			$trans = new DatabaseTransaction($connection);
 			$trans->begin();
 
-			$this->expectException(\Exception::class);
-			$trans->commit();
+			try {
+				$trans->commit();
+
+				$this->fail('The expected exception was not thrown');
+			}
+			catch (\Exception $ex) {
+				$this->assertSame($thrownException, $ex);
+			}
 		}
 
 
 		public function testRollback() {
+
+			if (!env('DB_CONNECTION'))
+				$this->markTestSkipped('No database connection configured');
+
+			/** @var Connection|MockObject $connection */
+			$connection = DB::connection();
+
+			$trans = new DatabaseTransaction($connection);
+
+			$trans->begin();
+
+			$this->assertSame(1, DB::connection()->transactionLevel());
+
+			$this->assertSame($trans, $trans->rollback());
+
+			$this->assertSame(0, DB::connection()->transactionLevel());
+		}
+
+		public function testRollback_callsRollbackMethod() {
 
 			/** @var Connection|MockObject $connection */
 			$connection = $this->getMockBuilder(Connection::class)->disableOriginalConstructor()->getMock();
@@ -239,15 +300,11 @@
 		public function testTest_success() {
 
 
+			if (!env('DB_CONNECTION'))
+				$this->markTestSkipped('No database connection configured');
+
 			/** @var Connection|MockObject $connection */
-			$connection = $this->getMockBuilder(Connection::class)->disableOriginalConstructor()->getMock();
-			$connection
-				->method('getName')
-				->willReturn('testConnection');
-			$connection
-				->expects($this->once())
-				->method('select')
-				->with('SELECT 1');
+			$connection = DB::connection();
 
 			$trans = new DatabaseTransaction($connection);
 
@@ -269,10 +326,53 @@
 				->method('select')
 				->willThrowException(new QueryException('', [], new \Exception('server has gone away')));
 
+			$level = 0;
+			$connection
+				->method('beginTransaction')
+				->willReturnCallback(function () use (&$level) {
+					++$level;
+				});
+			$connection
+				->method('transactionLevel')
+				->willReturnCallback(function () use (&$level) {
+					return $level;
+				});
+
 			$trans = new DatabaseTransaction($connection);
 
 
 			$trans->begin();
+
+			$this->assertFalse($trans->test());
+		}
+
+		public function testTest_connectionDeadlockRollback() {
+
+			/** @var Connection|MockObject $connection */
+			$connection = $this->getMockBuilder(Connection::class)->disableOriginalConstructor()->getMock();
+			$connection
+				->method('getName')
+				->willReturn('testConnection');
+
+			$level = 0;
+			$connection
+				->method('beginTransaction')
+				->willReturnCallback(function () use (&$level) {
+					++$level;
+				});
+			$connection
+				->method('transactionLevel')
+				->willReturnCallback(function () use (&$level) {
+					return $level;
+				});
+
+			$trans = new DatabaseTransaction($connection);
+
+
+			$trans->begin();
+
+			// simulate dead lock rollback (Laravel decreases the transaction level in such case)
+			--$level;
 
 			$this->assertFalse($trans->test());
 		}
@@ -288,6 +388,18 @@
 				->expects($this->once())
 				->method('select')
 				->willThrowException(new QueryException('', [], new \Exception('s.th. went wrong')));
+
+			$level = 0;
+			$connection
+				->method('beginTransaction')
+				->willReturnCallback(function () use (&$level) {
+					++$level;
+				});
+			$connection
+				->method('transactionLevel')
+				->willReturnCallback(function () use (&$level) {
+					return $level;
+				});
 
 			$trans = new DatabaseTransaction($connection);
 

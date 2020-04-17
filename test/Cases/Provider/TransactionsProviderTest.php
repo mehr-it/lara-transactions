@@ -8,7 +8,6 @@
 
 	namespace MehrItLaraTransactionsTest\Cases\Provider;
 
-
 	use Illuminate\Database\Connection;
 	use Illuminate\Database\Eloquent\Model;
 	use MehrIt\LaraTransactions\Contracts\Transaction;

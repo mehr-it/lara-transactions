@@ -80,7 +80,7 @@ Simply implement the `Transactor` interface and register your transactor:
 The `Transaction` facade allows to pass in multiple "transactional entities" for which multiple
 transactions may be created and managed at the same time.
 
-The problem with multiple transactions is, that it can not be assured that all of them commit or fail:
+The problem with multiple transactions at different connections is, that it can not be assured that all of them commit or fail:
 They have to be committed one after another. If one commit succeeds and subsequent one fails,
 inconsistencies may happen. You should avoid multiple transactions wherever possible. But real world
 examples show, that it is not avoidable in some scenarios. Think of applications requiring multiple
