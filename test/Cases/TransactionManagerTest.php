@@ -735,11 +735,15 @@
 			$transaction1
 				->method('commit')
 				->willReturnCallback(function () use (&$t1State) {
+					$this->assertSame('begun', $t1State);
+
 					$t1State = 'committed';
 				});
 			$transaction1
 				->method('rollback')
 				->willReturnCallback(function () use (&$t1State) {
+					$this->assertSame('begun', $t1State);
+
 					$t1State = 'rolled back';
 				});
 
@@ -755,11 +759,15 @@
 			$transaction2
 				->method('commit')
 				->willReturnCallback(function () use (&$t2State) {
+					$this->assertSame('begun', $t2State);
+
 					$t2State = 'committed';
 				});
 			$transaction2
 				->method('rollback')
 				->willReturnCallback(function () use (&$t2State) {
+					$this->assertSame('begun', $t2State);
+
 					$t2State = 'rolled back';
 				});
 
@@ -941,16 +949,19 @@
 				->method('test')
 				->willReturn(true);
 			$transaction1
+				->expects($this->atMost(1))
 				->method('begin')
 				->willReturnCallback(function () use (&$t1State) {
 					$t1State = 'begun';
 				});
 			$transaction1
+				->expects($this->atMost(1))
 				->method('commit')
 				->willReturnCallback(function () use (&$t1State) {
 					$t1State = 'committed';
 				});
 			$transaction1
+				->expects($this->atMost(1))
 				->method('rollback')
 				->willReturnCallback(function () use (&$t1State) {
 					$t1State = 'rolled back';
@@ -961,16 +972,19 @@
 				->method('test')
 				->willReturn(true);
 			$transaction2
+				->expects($this->atMost(1))
 				->method('begin')
 				->willReturnCallback(function () use (&$t2State) {
 					$t2State = 'begun';
 				});
 			$transaction2
+				->expects($this->atMost(1))
 				->method('commit')
 				->willReturnCallback(function () use (&$t2State) {
 					$t2State = 'committed';
 				});
 			$transaction2
+				->expects($this->atMost(1))
 				->method('rollback')
 				->willReturnCallback(function () use (&$t2State) {
 					$t2State = 'rolled back';
@@ -981,16 +995,19 @@
 				->method('test')
 				->willReturn(true);
 			$transaction3
+				->expects($this->atMost(1))
 				->method('begin')
 				->willReturnCallback(function () use (&$t3State) {
 					$t3State = 'begun';
 				});
 			$transaction3
+				->expects($this->atMost(1))
 				->method('commit')
 				->willReturnCallback(function () use (&$t3State) {
 					$t3State = 'committed';
 				});
 			$transaction3
+				->expects($this->atMost(1))
 				->method('rollback')
 				->willReturnCallback(function () use (&$t3State) {
 					$t3State = 'rolled back';
@@ -1084,16 +1101,19 @@
 				->method('test')
 				->willReturn(true);
 			$transaction1
+				->expects($this->atMost(1))
 				->method('begin')
 				->willReturnCallback(function () use (&$t1State) {
 					$t1State = 'begun';
 				});
 			$transaction1
+				->expects($this->atMost(1))
 				->method('commit')
 				->willReturnCallback(function () use (&$t1State) {
 					$t1State = 'committed';
 				});
 			$transaction1
+				->expects($this->atMost(1))
 				->method('rollback')
 				->willReturnCallback(function () use (&$t1State) {
 					$t1State = 'rolled back';
@@ -1104,16 +1124,19 @@
 				->method('test')
 				->willReturn(true);
 			$transaction2
+				->expects($this->atMost(1))
 				->method('begin')
 				->willReturnCallback(function () use (&$t2State) {
 					$t2State = 'begun';
 				});
 			$transaction2
+				->expects($this->atMost(1))
 				->method('commit')
 				->willReturnCallback(function () use (&$t2State) {
 					$t2State = 'committed';
 				});
 			$transaction2
+				->expects($this->atMost(1))
 				->method('rollback')
 				->willReturnCallback(function () use (&$t2State) {
 					$t2State = 'rolled back';
@@ -1124,16 +1147,19 @@
 				->method('test')
 				->willReturn(true);
 			$transaction3
+				->expects($this->atMost(1))
 				->method('begin')
 				->willReturnCallback(function () use (&$t3State) {
 					$t3State = 'begun';
 				});
 			$transaction3
+				->expects($this->atMost(1))
 				->method('commit')
 				->willReturnCallback(function () use (&$t3State) {
 					$t3State = 'committed';
 				});
 			$transaction3
+				->expects($this->atMost(1))
 				->method('rollback')
 				->willReturnCallback(function () use (&$t3State) {
 					$t3State = 'rolled back';

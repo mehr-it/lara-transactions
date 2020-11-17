@@ -276,6 +276,25 @@
 			$this->assertSame($trans, $trans->rollback());
 		}
 
+		public function testRollback_savepointNotExistsException() {
+
+			/** @var Connection|MockObject $connection */
+			$connection = $this->getMockBuilder(Connection::class)->disableOriginalConstructor()->getMock();
+			$connection
+				->method('getName')
+				->willReturn('testConnection');
+			$connection
+				->expects($this->once())
+				->method('rollBack')
+				->willThrowException(new \Exception('SQLSTATE[42000]: Syntax error or access violation: 1305 SAVEPOINT trans2 does not exist'));
+			;
+
+			$trans = new DatabaseTransaction($connection);
+			$trans->begin();
+
+			$this->assertSame($trans, $trans->rollback());
+		}
+
 		public function testRollback_exceptionThrown() {
 
 			/** @var Connection|MockObject $connection */

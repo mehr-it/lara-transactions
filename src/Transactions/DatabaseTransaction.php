@@ -17,6 +17,8 @@
 	use MehrIt\LaraTransactions\Exception\RollbackException;
 	use MehrIt\LaraTransactions\Exception\TransactionNotStartedException;
 	use MehrIt\LaraTransactions\Exception\TransactionStartedException;
+	use PDOException;
+	use Throwable;
 
 	class DatabaseTransaction implements Transaction
 	{
@@ -103,11 +105,20 @@
 					$this->connection->rollBack($this->rollbackToLevel);
 				}
 				catch(\Exception $ex) {
-					// ignore connection loss errors, since a collection loss implicitly executes a rollback
-					if (!$this->causedByLostConnection($ex))
+
+					/** @noinspection PhpStatementHasEmptyBodyInspection */
+					if (Str::containsAll($ex->getMessage(), ['SAVEPOINT', 'does not exist'])) {
+						// do nothing - the savepoint has already been rolled back
+					}
+					/** @noinspection PhpStatementHasEmptyBodyInspection */
+					elseif ($this->causedByLostConnection($ex)) {
+						// ignore connection loss errors, since a collection loss implicitly executes a rollback
+					}
+					else {
 						throw new RollbackException(null, 0, $ex);
+					}
 				}
-				catch(\Throwable $ex) {
+				catch(Throwable $ex) {
 					throw new RollbackException(null, 0, $ex);
 				}
 				$this->transactionStarted = false;
