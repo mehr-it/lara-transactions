@@ -107,7 +107,7 @@
 				catch(\Exception $ex) {
 
 					/** @noinspection PhpStatementHasEmptyBodyInspection */
-					if (Str::containsAll($ex->getMessage(), ['SAVEPOINT', 'does not exist'])) {
+					if (strpos($ex->getMessage(), 'SAVEPOINT') !== false && strpos($ex->getMessage(), 'does not exist') !== false) {
 						// do nothing - the savepoint has already been rolled back
 					}
 					/** @noinspection PhpStatementHasEmptyBodyInspection */
