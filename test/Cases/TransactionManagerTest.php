@@ -59,7 +59,7 @@
 
 
 			$this->expectException(\RuntimeException::class);
-			$this->expectExceptionMessageRegExp('/^Could not find transactor.*/');
+			$this->expectExceptionMessageMatches('/^Could not find transactor.*/');
 
 			$tm->begin($transactable);
 
