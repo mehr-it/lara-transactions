@@ -10,6 +10,7 @@
 
 
 	use Closure;
+	use Generator;
 	use MehrIt\LaraTransactions\Contracts\Transactor;
 	use MehrIt\LaraTransactions\Exception\InconsistentCommitException;
 	use MehrIt\LaraTransactions\Exception\RollbackException;
@@ -123,21 +124,50 @@
 		 * @throws TransactionNotStartedException
 		 */
 		public function run($transactional, callable $callback) {
-
-
-			/** @noinspection PhpUnusedLocalVariableInspection */
+			
+			$this->begin($transactional);
 			$success = false;
 			try {
-
-				// begin transaction
-				$this->begin($transactional);
-
+				
 				// run callback
 				$ret = call_user_func($callback);
+				
+				if ($ret instanceof Generator)
+					logger()->warning("The callback for Transaction::run() returned a generator. Transaction::iterate() must be used to keep the transaction open until the generator has been closed.");
 
 				$success = true;
 
 				return $ret;
+			}
+			finally {
+				if ($success)
+					$this->commit();
+				else
+					$this->rollback();
+
+			}
+		}
+
+		/**
+		 * Iterates over the result of the given callback within transactions for the given transactional(s)
+		 * @param string[]|object[]|string|object $transactional The transactional(s). Accepts database connection names, class names or instances.
+		 * @param callable $callback The callback which should be executed within the transactions
+		 * @return Generator The generator for callbacks
+		 * @throws InconsistentCommitException  Thrown if an inconsistent committed occurred (some connections were committed but others failed)
+		 * @throws RollbackException Thrown if any connection was detected as broken before commit was executed
+		 * @throws TransactionBrokenException Thrown if an error occurs while rollback
+		 * @throws TransactionNotStartedException
+		 */
+		public function iterate($transactional, callable $callback) {
+
+			$this->begin($transactional);
+			$success = false;
+			try {
+
+				// run callback
+				yield from call_user_func($callback);
+
+				$success = true;
 			}
 			finally {
 				if ($success)

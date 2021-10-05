@@ -568,6 +568,65 @@
 			$this->assertEquals('committed', $t1State);
 
 		}
+		
+		public function testRun_single_iterator() {
+
+			$t1State = null;
+
+			$transactable = $this->getMockBuilder(\stdClass::class)->getMock();
+
+			$transaction = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction
+				->method('begin')
+				->willReturnCallback(function() use (&$t1State) {
+					$t1State = 'begun';
+				})
+			;
+			$transaction
+				->method('commit')
+				->willReturnCallback(function() use (&$t1State) {
+					$t1State = 'committed';
+				})
+			;
+			$transaction
+				->method('rollback')
+				->willReturnCallback(function() use (&$t1State) {
+					$t1State = 'rolled back';
+				})
+			;
+
+
+			/** @var Transactor|MockObject $mockTransactor */
+			$mockTransactor = $this->getMockBuilder(Transactor::class)->getMock();
+			$mockTransactor
+				->expects($this->once())
+				->method('bindToPool')
+				->with($transactable, $this->isInstanceOf(TransactionPool::class))
+				->willReturnCallback(function ($t, $pool) use ($transaction) {
+					$pool->add($transaction);
+
+					return $this;
+				});;
+
+			$tm = new TransactionManager();
+
+			$tm->registerTransactor(MockObject::class, $mockTransactor);
+
+			$callbackCalled = false;
+			$ret = $tm->iterate($transactable, function() use (&$callbackCalled, &$t1State) {
+				$this->assertEquals('begun', $t1State);
+				$callbackCalled = true;
+				
+				yield 1;
+				yield 2;
+			});
+			
+			iterator_to_array($ret);
+
+			$this->assertTrue($callbackCalled);
+			$this->assertEquals('committed', $t1State);
+
+		}
 
 		public function testRun_single_exception() {
 
@@ -1224,5 +1283,790 @@
 			$this->assertEquals('rolled back', $t1State);
 			$this->assertEquals('rolled back', $t2State);
 			$this->assertEquals('committed', $t3State);
+		}
+
+		public function testIterate_single() {
+
+			$t1State = null;
+
+			$transactable = $this->getMockBuilder(\stdClass::class)->getMock();
+
+			$transaction = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction
+				->method('begin')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'begun';
+				});
+			$transaction
+				->method('commit')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'committed';
+				});
+			$transaction
+				->method('rollback')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'rolled back';
+				});
+
+
+			/** @var Transactor|MockObject $mockTransactor */
+			$mockTransactor = $this->getMockBuilder(Transactor::class)->getMock();
+			$mockTransactor
+				->expects($this->once())
+				->method('bindToPool')
+				->with($transactable, $this->isInstanceOf(TransactionPool::class))
+				->willReturnCallback(function ($t, $pool) use ($transaction) {
+					$pool->add($transaction);
+
+					return $this;
+				});;
+
+			$tm = new TransactionManager();
+
+			$tm->registerTransactor(MockObject::class, $mockTransactor);
+
+			$callbackCalled = false;
+			$res            = $tm->iterate($transactable, function () use (&$callbackCalled, &$t1State) {
+				$callbackCalled = true;
+
+				for ($i = 1; $i < 3; ++$i) {
+					$this->assertEquals('begun', $t1State, "Iteration #{$i}");
+					yield $i;
+				}
+
+			});
+
+			iterator_to_array($res);
+
+			$this->assertTrue($callbackCalled);
+			$this->assertEquals('committed', $t1State);
+		}
+		
+		public function testIterate_single_exception() {
+
+			$t1State = null;
+
+			$transactable = $this->getMockBuilder(\stdClass::class)->getMock();
+
+			$transaction = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction
+				->method('begin')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'begun';
+				});
+			$transaction
+				->method('commit')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'committed';
+				});
+			$transaction
+				->method('rollback')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'rolled back';
+				});
+
+
+			/** @var Transactor|MockObject $mockTransactor */
+			$mockTransactor = $this->getMockBuilder(Transactor::class)->getMock();
+			$mockTransactor
+				->expects($this->once())
+				->method('bindToPool')
+				->with($transactable, $this->isInstanceOf(TransactionPool::class))
+				->willReturnCallback(function ($t, $pool) use ($transaction) {
+					$pool->add($transaction);
+
+					return $this;
+				});;
+
+			$tm = new TransactionManager();
+
+			$tm->registerTransactor(MockObject::class, $mockTransactor);
+
+			$callbackCalled = false;
+			try {
+				$res = $tm->iterate($transactable, function () use (&$callbackCalled, &$t1State) {
+					$callbackCalled = true;
+
+					for ($i = 1; $i < 3; ++$i) {
+						$this->assertEquals('begun', $t1State, "Iteration #{$i}");
+						yield $i;
+
+						throw new \Exception();
+					}
+
+
+				});
+
+				iterator_to_array($res);
+
+				$this->fail('The expected exception was not thrown');
+			}
+			catch (\Exception $ex) {
+				if ($ex instanceof ExpectationFailedException)
+					throw $ex;
+
+				$this->assertFalse(false);
+			}
+
+			$this->assertTrue($callbackCalled);
+			$this->assertEquals('rolled back', $t1State);
+		}
+
+		public function testIterate_multiple() {
+
+			$t1State = null;
+			$t2State = null;
+
+			$transactable1 = $this->getMockBuilder(\stdClass::class)->getMock();
+			$transactable2 = $this->getMockBuilder(\stdClass::class)->getMock();
+
+			$transaction1 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction1
+				->method('test')
+				->willReturn(true);
+			$transaction1
+				->method('begin')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'begun';
+				});
+			$transaction1
+				->method('commit')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'committed';
+				});
+			$transaction1
+				->method('rollback')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'rolled back';
+				});
+
+			$transaction2 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction2
+				->method('test')
+				->willReturn(true);
+			$transaction2
+				->method('begin')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'begun';
+				});
+			$transaction2
+				->method('commit')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'committed';
+				});
+			$transaction2
+				->method('rollback')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'rolled back';
+				});
+
+
+			/** @var Transactor|MockObject $mockTransactor */
+			$mockTransactor = $this->getMockBuilder(Transactor::class)->getMock();
+			$mockTransactor
+				->expects($this->exactly(2))
+				->method('bindToPool')
+				->with($transactable1, $this->isInstanceOf(TransactionPool::class))
+				->willReturnCallback(function ($t, $pool) use ($transactable1, $transaction1, $transaction2) {
+					if ($t === $transactable1)
+						$pool->add($transaction1);
+					else
+						$pool->add($transaction2);
+
+					return $this;
+				});;
+
+			$tm = new TransactionManager();
+
+			$tm->registerTransactor(MockObject::class, $mockTransactor);
+
+			$callbackCalled = false;
+			$res = $tm->iterate([$transactable1, $transactable2], function () use (&$callbackCalled, &$t1State, &$t2State) {
+				$callbackCalled = true;
+				
+
+				for ($i = 1; $i < 3; ++$i) {
+					$this->assertEquals('begun', $t1State);
+					$this->assertEquals('begun', $t2State);
+					yield $i;
+				}
+				
+			});
+
+			iterator_to_array($res);
+
+			$this->assertTrue($callbackCalled);
+			$this->assertEquals('committed', $t1State);
+			$this->assertEquals('committed', $t2State);
+		}
+		
+		public function testIterate_multiple_exception() {
+
+			$t1State = null;
+			$t2State = null;
+
+			$transactable1 = $this->getMockBuilder(\stdClass::class)->getMock();
+			$transactable2 = $this->getMockBuilder(\stdClass::class)->getMock();
+
+			$transaction1 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction1
+				->method('test')
+				->willReturn(true);
+			$transaction1
+				->method('begin')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'begun';
+				});
+			$transaction1
+				->method('commit')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'committed';
+				});
+			$transaction1
+				->method('rollback')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'rolled back';
+				});
+
+			$transaction2 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction2
+				->method('test')
+				->willReturn(true);
+			$transaction2
+				->method('begin')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'begun';
+				});
+			$transaction2
+				->method('commit')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'committed';
+				});
+			$transaction2
+				->method('rollback')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'rolled back';
+				});
+
+
+			/** @var Transactor|MockObject $mockTransactor */
+			$mockTransactor = $this->getMockBuilder(Transactor::class)->getMock();
+			$mockTransactor
+				->expects($this->exactly(2))
+				->method('bindToPool')
+				->with($transactable1, $this->isInstanceOf(TransactionPool::class))
+				->willReturnCallback(function ($t, $pool) use ($transactable1, $transaction1, $transaction2) {
+					if ($t === $transactable1)
+						$pool->add($transaction1);
+					else
+						$pool->add($transaction2);
+
+					return $this;
+				});;
+
+			$tm = new TransactionManager();
+
+			$tm->registerTransactor(MockObject::class, $mockTransactor);
+
+			$callbackCalled = false;
+			try {
+				$res = $tm->iterate([$transactable1, $transactable2], function () use (&$callbackCalled, &$t1State, &$t2State) {
+					$callbackCalled = true;
+
+
+					for ($i = 1; $i < 3; ++$i) {
+						$this->assertEquals('begun', $t1State);
+						$this->assertEquals('begun', $t2State);
+						yield $i;
+
+						throw new \Exception();
+					}
+
+				});
+
+				iterator_to_array($res);
+				
+				$this->fail("The expected exception was not thrown");
+			}
+			catch (\Exception $ex) {
+				if ($ex instanceof ExpectationFailedException)
+					throw $ex;
+
+				$this->assertFalse(false);
+			}
+
+			$this->assertTrue($callbackCalled);
+			$this->assertEquals('rolled back', $t1State);
+			$this->assertEquals('rolled back', $t2State);
+		}
+
+		public function testIterate_nested() {
+
+			$t1State = null;
+			$t2State = null;
+			$t3State = null;
+
+			$transactable1 = $this->getMockBuilder(\stdClass::class)->getMock();
+			$transactable2 = $this->getMockBuilder(\stdClass::class)->getMock();
+			$transactable3 = $this->getMockBuilder(\stdClass::class)->getMock();
+
+			$transaction1 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction1
+				->method('test')
+				->willReturn(true);
+			$transaction1
+				->expects($this->atMost(1))
+				->method('begin')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'begun';
+				});
+			$transaction1
+				->expects($this->atMost(1))
+				->method('commit')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'committed';
+				});
+			$transaction1
+				->expects($this->atMost(1))
+				->method('rollback')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'rolled back';
+				});
+
+			$transaction2 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction2
+				->method('test')
+				->willReturn(true);
+			$transaction2
+				->expects($this->atMost(1))
+				->method('begin')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'begun';
+				});
+			$transaction2
+				->expects($this->atMost(1))
+				->method('commit')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'committed';
+				});
+			$transaction2
+				->expects($this->atMost(1))
+				->method('rollback')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'rolled back';
+				});
+
+			$transaction3 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction3
+				->method('test')
+				->willReturn(true);
+			$transaction3
+				->expects($this->atMost(1))
+				->method('begin')
+				->willReturnCallback(function () use (&$t3State) {
+					$t3State = 'begun';
+				});
+			$transaction3
+				->expects($this->atMost(1))
+				->method('commit')
+				->willReturnCallback(function () use (&$t3State) {
+					$t3State = 'committed';
+				});
+			$transaction3
+				->expects($this->atMost(1))
+				->method('rollback')
+				->willReturnCallback(function () use (&$t3State) {
+					$t3State = 'rolled back';
+				});
+
+
+			/** @var Transactor|MockObject $mockTransactor */
+			$mockTransactor = $this->getMockBuilder(Transactor::class)->getMock();
+			$mockTransactor
+				->expects($this->exactly(3))
+				->method('bindToPool')
+				->with($transactable1, $this->isInstanceOf(TransactionPool::class))
+				->willReturnCallback(function ($t, $pool) use ($transactable1, $transactable2, $transaction1, $transaction2, $transaction3) {
+					if ($t === $transactable1)
+						$pool->add($transaction1);
+					elseif ($t === $transactable2)
+						$pool->add($transaction2);
+					else
+						$pool->add($transaction3);
+
+					return $this;
+				});;
+
+			$tm = new TransactionManager();
+
+			$tm->registerTransactor(MockObject::class, $mockTransactor);
+
+
+			$callbackCalledA = false;
+			$callbackCalledB = false;
+			$ret = $tm->iterate([$transactable1, $transactable2], function () use (&$callbackCalledA, &$callbackCalledB, &$t1State, &$t2State, &$t3State, $tm, $transactable3) {
+
+				$this->assertEquals(null, $t3State);
+				$callbackCalledA = true;
+
+				$ret = $tm->iterate([$transactable3], function () use (&$callbackCalledB, &$t3State, $tm) {
+
+					$callbackCalledB = true;
+					for ($i = 1; $i < 3; ++$i) {
+						$this->assertEquals('begun', $t3State, "Iteration inner #{$i}");
+						yield $i;
+
+					}
+				});
+
+				foreach ($ret as $curr) {
+					$this->assertTrue($callbackCalledB);
+					$this->assertEquals('begun', $t3State);
+					$this->assertEquals('begun', $t1State);
+					$this->assertEquals('begun', $t2State);
+
+					yield $curr;
+				}
+
+
+				
+				$this->assertEquals('committed', $t3State);
+			});
+
+			iterator_to_array($ret);
+
+			$this->assertTrue(true);
+
+
+			$this->assertTrue($callbackCalledA);
+			$this->assertTrue($callbackCalledB);
+			$this->assertEquals('committed', $t1State);
+			$this->assertEquals('committed', $t2State);
+			$this->assertEquals('committed', $t3State);
+		}
+		
+		public function testIterate_nested_exceptionInner() {
+
+			$t1State = null;
+			$t2State = null;
+			$t3State = null;
+
+			$transactable1 = $this->getMockBuilder(\stdClass::class)->getMock();
+			$transactable2 = $this->getMockBuilder(\stdClass::class)->getMock();
+			$transactable3 = $this->getMockBuilder(\stdClass::class)->getMock();
+
+			$transaction1 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction1
+				->method('test')
+				->willReturn(true);
+			$transaction1
+				->expects($this->atMost(1))
+				->method('begin')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'begun';
+				});
+			$transaction1
+				->expects($this->atMost(1))
+				->method('commit')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'committed';
+				});
+			$transaction1
+				->expects($this->atMost(1))
+				->method('rollback')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'rolled back';
+				});
+
+			$transaction2 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction2
+				->method('test')
+				->willReturn(true);
+			$transaction2
+				->expects($this->atMost(1))
+				->method('begin')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'begun';
+				});
+			$transaction2
+				->expects($this->atMost(1))
+				->method('commit')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'committed';
+				});
+			$transaction2
+				->expects($this->atMost(1))
+				->method('rollback')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'rolled back';
+				});
+
+			$transaction3 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction3
+				->method('test')
+				->willReturn(true);
+			$transaction3
+				->expects($this->atMost(1))
+				->method('begin')
+				->willReturnCallback(function () use (&$t3State) {
+					$t3State = 'begun';
+				});
+			$transaction3
+				->expects($this->atMost(1))
+				->method('commit')
+				->willReturnCallback(function () use (&$t3State) {
+					$t3State = 'committed';
+				});
+			$transaction3
+				->expects($this->atMost(1))
+				->method('rollback')
+				->willReturnCallback(function () use (&$t3State) {
+					$t3State = 'rolled back';
+				});
+
+
+			/** @var Transactor|MockObject $mockTransactor */
+			$mockTransactor = $this->getMockBuilder(Transactor::class)->getMock();
+			$mockTransactor
+				->expects($this->exactly(3))
+				->method('bindToPool')
+				->with($transactable1, $this->isInstanceOf(TransactionPool::class))
+				->willReturnCallback(function ($t, $pool) use ($transactable1, $transactable2, $transaction1, $transaction2, $transaction3) {
+					if ($t === $transactable1)
+						$pool->add($transaction1);
+					elseif ($t === $transactable2)
+						$pool->add($transaction2);
+					else
+						$pool->add($transaction3);
+
+					return $this;
+				});;
+
+			$tm = new TransactionManager();
+
+			$tm->registerTransactor(MockObject::class, $mockTransactor);
+
+
+			$callbackCalledA = false;
+			$callbackCalledB = false;
+			try {
+				$ret = $tm->iterate([$transactable1, $transactable2], function () use (&$callbackCalledA, &$callbackCalledB, &$t1State, &$t2State, &$t3State, $tm, $transactable3) {
+					
+					$this->assertEquals(null, $t3State);
+					$callbackCalledA = true;
+
+					try {
+						$ret = $tm->iterate([$transactable3], function () use (&$callbackCalledB, &$t3State, $tm) {
+
+							$callbackCalledB = true;
+							for ($i = 1; $i < 3; ++$i) {
+								$this->assertEquals('begun', $t3State, "Iteration inner #{$i}");
+								yield $i;
+
+								throw new \Exception();
+							}
+						});
+
+						foreach ($ret as $curr) {
+							$this->assertTrue($callbackCalledB);
+							$this->assertEquals('begun', $t3State);
+							$this->assertEquals('begun', $t1State);
+							$this->assertEquals('begun', $t2State);
+							
+							yield $curr;
+						}
+						
+						$this->assertFalse(true);
+					}
+					catch (\Exception $ex) {
+						if ($ex instanceof ExpectationFailedException)
+							throw $ex;
+
+						$this->assertEquals('rolled back', $t3State);
+
+						$this->assertFalse(false);
+
+						throw $ex;
+					}
+					
+					
+
+
+					
+				});
+				
+				iterator_to_array($ret);
+
+				$this->assertFalse(true);
+			}
+			catch (\Exception $ex) {
+				if ($ex instanceof ExpectationFailedException)
+					throw $ex;
+
+				$this->assertFalse(false);
+			}
+
+
+			$this->assertTrue($callbackCalledA);
+			$this->assertTrue($callbackCalledB);
+			$this->assertEquals('rolled back', $t1State);
+			$this->assertEquals('rolled back', $t2State);
+			$this->assertEquals('rolled back', $t3State);
+		}
+		
+		public function testIterate_nested_exceptionOuter() {
+
+			$t1State = null;
+			$t2State = null;
+			$t3State = null;
+
+			$transactable1 = $this->getMockBuilder(\stdClass::class)->getMock();
+			$transactable2 = $this->getMockBuilder(\stdClass::class)->getMock();
+			$transactable3 = $this->getMockBuilder(\stdClass::class)->getMock();
+
+			$transaction1 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction1
+				->method('test')
+				->willReturn(true);
+			$transaction1
+				->expects($this->atMost(1))
+				->method('begin')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'begun';
+				});
+			$transaction1
+				->expects($this->atMost(1))
+				->method('commit')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'committed';
+				});
+			$transaction1
+				->expects($this->atMost(1))
+				->method('rollback')
+				->willReturnCallback(function () use (&$t1State) {
+					$t1State = 'rolled back';
+				});
+
+			$transaction2 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction2
+				->method('test')
+				->willReturn(true);
+			$transaction2
+				->expects($this->atMost(1))
+				->method('begin')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'begun';
+				});
+			$transaction2
+				->expects($this->atMost(1))
+				->method('commit')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'committed';
+				});
+			$transaction2
+				->expects($this->atMost(1))
+				->method('rollback')
+				->willReturnCallback(function () use (&$t2State) {
+					$t2State = 'rolled back';
+				});
+
+			$transaction3 = $this->getMockBuilder(Transaction::class)->getMock();
+			$transaction3
+				->method('test')
+				->willReturn(true);
+			$transaction3
+				->expects($this->atMost(1))
+				->method('begin')
+				->willReturnCallback(function () use (&$t3State) {
+					$t3State = 'begun';
+				});
+			$transaction3
+				->expects($this->atMost(1))
+				->method('commit')
+				->willReturnCallback(function () use (&$t3State) {
+					$t3State = 'committed';
+				});
+			$transaction3
+				->expects($this->atMost(1))
+				->method('rollback')
+				->willReturnCallback(function () use (&$t3State) {
+					$t3State = 'rolled back';
+				});
+
+
+			/** @var Transactor|MockObject $mockTransactor */
+			$mockTransactor = $this->getMockBuilder(Transactor::class)->getMock();
+			$mockTransactor
+				->expects($this->exactly(3))
+				->method('bindToPool')
+				->with($transactable1, $this->isInstanceOf(TransactionPool::class))
+				->willReturnCallback(function ($t, $pool) use ($transactable1, $transactable2, $transaction1, $transaction2, $transaction3) {
+					if ($t === $transactable1)
+						$pool->add($transaction1);
+					elseif ($t === $transactable2)
+						$pool->add($transaction2);
+					else
+						$pool->add($transaction3);
+
+					return $this;
+				});;
+
+			$tm = new TransactionManager();
+
+			$tm->registerTransactor(MockObject::class, $mockTransactor);
+
+
+			$callbackCalledA = false;
+			$callbackCalledB = false;
+			try {
+				$ret = $tm->iterate([$transactable1, $transactable2], function () use (&$callbackCalledA, &$callbackCalledB, &$t1State, &$t2State, &$t3State, $tm, $transactable3) {
+					
+					$this->assertEquals(null, $t3State);
+					$callbackCalledA = true;
+
+					
+					$ret = $tm->iterate([$transactable3], function () use (&$callbackCalledB, &$t3State, $tm) {
+
+						$callbackCalledB = true;
+						for ($i = 1; $i < 3; ++$i) {
+							$this->assertEquals('begun', $t3State, "Iteration inner #{$i}");
+							yield $i;
+						}
+					});
+
+					
+					foreach ($ret as $curr) {
+						$this->assertTrue($callbackCalledB);
+						$this->assertEquals('begun', $t3State);
+						$this->assertEquals('begun', $t1State);
+						$this->assertEquals('begun', $t2State);
+						
+						yield $curr;
+
+						throw new \Exception();
+					}
+					
+
+
+					
+				});
+				
+				iterator_to_array($ret);
+
+				$this->fail('The expected exception was not thrown');
+			}
+			catch (\Exception $ex) {
+				if ($ex instanceof ExpectationFailedException)
+					throw $ex;
+
+				$this->assertFalse(false);
+			}
+
+
+			$this->assertTrue($callbackCalledA);
+			$this->assertTrue($callbackCalledB);
+			$this->assertEquals('rolled back', $t1State);
+			$this->assertEquals('rolled back', $t2State);
+			$this->assertEquals('rolled back', $t3State);
 		}
 	}

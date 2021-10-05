@@ -15,11 +15,11 @@
 	if (trim($testPackages)) {
 		echo "Requiring $testPackages\n";
 		copy(__DIR__ . '/composer.json', __DIR__ . '/composer-test.json');
-		exec("cd '" . __DIR__ . "' && export COMPOSER=\"composer-test.json\" && composer require --no-interaction --with-all-dependencies $testPackages && composer dump-autoload --no-interaction", $output, $returnVar);
+		exec("cd '" . __DIR__ . "' && export COMPOSER=\"composer-test.json\" && composer require --no-interaction --ignore-platform-reqs --with-all-dependencies $testPackages && composer dump-autoload --no-interaction --ignore-platform-reqs", $output, $returnVar);
 	}
 	else {
 		echo "Using default composer.json\n";
-		exec("cd '" . __DIR__ . "' && composer update --with-all-dependencies && composer dump-autoload", $output, $returnVar);
+		exec("cd '" . __DIR__ . "' && composer update --with-all-dependencies --ignore-platform-reqs && composer dump-autoload  --ignore-platform-reqs", $output, $returnVar);
 	}
 
 	echo implode("\n", $output) . "\n";
